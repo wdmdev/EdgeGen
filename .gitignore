@@ -1,5 +1,7 @@
 # Custom ignores
 data/
+!src/**/data/
+output/
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,vim,linux,visualstudiocode,virtualenv
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,jupyternotebooks,vim,linux,visualstudiocode,virtualenv
