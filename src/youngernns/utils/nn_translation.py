@@ -58,7 +58,8 @@ def networkx_to_onnx(nx_graph, input_shape, output_shape):
 
         for att, (att_type, val) in attrs['features']['attributes'].items():
             if ast.literal_eval(val) is not None:
-                node_attrs[att] = __convert_attribute_to_type(val, att_type)
+                if "NOTSET" not in val:
+                    node_attrs[att] = __convert_attribute_to_type(val, att_type)
 
         if attrs['operator']['op_type'] == 'Reshape':
             batch_size = input_shape[0]
