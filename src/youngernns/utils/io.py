@@ -7,10 +7,8 @@
 # LICENSE file in the root directory of this source tree.
 
 import os
-import toml
 import json
 import pickle
-import psutil
 import pathlib
 
 def load_json(filepath: pathlib.Path | str) -> object:
@@ -18,6 +16,11 @@ def load_json(filepath: pathlib.Path | str) -> object:
         serializable_object = json.load(file)
 
     return serializable_object
+
+def save_pickle(serializable_object: object, filepath: pathlib.Path | str) -> None:
+    serialized_object = pickle.dumps(serializable_object)
+    with open(filepath, 'wb') as file:
+        pickle.dump(serialized_object, file)
 
 
 def load_pickle(filepath: pathlib.Path | str) -> object:
