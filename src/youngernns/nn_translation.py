@@ -321,6 +321,7 @@ if __name__ == "__main__":
     else:
         networks_enumerable = load_networks(data_path=data_path)
 
+    selected_network_count = 0
     for network in tqdm(networks_enumerable, total=num_networks):
         network_folder = network.data_path
         if network_folder is not None:
@@ -332,8 +333,13 @@ if __name__ == "__main__":
                     tf_model = onnx_to_tf(onnx_model, output_path=os.path.join(network_folder, 'tf_model'))
                     tf_graph = tf_to_networkx(tf_model)
                     save_pickle(tf_graph, tf_graph_filename)
+                    selected_network_count += 1
                     logger.info(f"Successfully converted network {network_folder} to TensorFlow format.")
                 except Exception as e:
                     logger.error(f"Error converting network {network_folder} to TensorFlow format: {e}", exc_info=True)
                 except SystemExit as e:
                     logger.error(f"Error converting network {network_folder} to TensorFlow format: {e}", exc_info=True)
+    
+    success_message = f"Successfully converted {selected_network_count} networks to TensorFlow format."
+    logger.info(success_message)
+    print(success_message)
