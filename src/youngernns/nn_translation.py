@@ -12,6 +12,7 @@ from onnx.checker import check_model
 import onnx2tf
 import tf_keras
 import networkx as nx
+from youngernns.nn_query import select_networks_with_operators
 
 def __convert_attribute_to_type(attr_value, attr_type):
     supported_types = {
@@ -269,6 +270,7 @@ def onnx_to_tf(onnx_model: Union[ModelProto, str], output_path: str) -> object:
                                batch_size=1,
                                keep_shape_absolutely_input_names=["data"],
                                output_folder_path=output_path,
+                               copy_onnx_input_output_names_to_tflite = True,
                                non_verbose=True)
     
     return tf.saved_model.load(output_path)
@@ -290,15 +292,20 @@ def tf_to_networkx(tf_model: tf_keras.Model) -> nx.DiGraph:
 
 if __name__ == "__main__":
     from tqdm import tqdm
+    from pathlib import Path
     from youngernns.utils.logging import get_logger
     from youngernns.utils.io import save_pickle
-    from youngernns.data.network import load_networks, count_networks
+    from youngernns.data.network import count_networks, load_networks
+    from youngernns.nn_query import select_networks_with_operators
 
-    logger = get_logger(__name__)
+    logger = get_logger(log_path_prefix=os.path.basename(__file__).replace(".py", ""))
 
     parser = ArgumentParser()
     parser.add_argument("--data_path", help="Path to folder containing network data in the Younger Dataset format.", 
                         type=str, required=True)
+    parser.add_argument("--operators", help="""List of operators to select networks for conversion based on.\n
+                        If specified only networks with a least one of the operators will be selected for conversion.""",
+                        required=False, type=str, nargs='+', default=None)
     args = parser.parse_args()
 
     print(f"Starting conversion of network graphs in {args.data_path} to TensorFlow(TF) format.")
@@ -306,8 +313,13 @@ if __name__ == "__main__":
     print(f"A new tf_graph.pkl file will be created for each network in the data path.")
     print(f"This tf_graph.pkl will be a NetworkX graph object with operator and attribute information following the TF format.")
 
+    data_path = Path(args.data_path)
     num_networks = count_networks(args.data_path)
-    networks_enumerable = load_networks(args.data_path)
+
+    if args.operators is not None:
+        networks_enumerable = select_networks_with_operators(data_path=data_path, operators=args.operators)
+    else:
+        networks_enumerable = load_networks(data_path=data_path)
 
     for network in tqdm(networks_enumerable, total=num_networks):
         network_folder = network.data_path
@@ -322,4 +334,6 @@ if __name__ == "__main__":
                     save_pickle(tf_graph, tf_graph_filename)
                     logger.info(f"Successfully converted network {network_folder} to TensorFlow format.")
                 except Exception as e:
+                    logger.error(f"Error converting network {network_folder} to TensorFlow format: {e}", exc_info=True)
+                except SystemExit as e:
                     logger.error(f"Error converting network {network_folder} to TensorFlow format: {e}", exc_info=True)
