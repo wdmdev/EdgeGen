@@ -10,6 +10,7 @@ import os
 import json
 import pickle
 import pathlib
+from typing import Generator
 
 def load_json(filepath: pathlib.Path | str) -> object:
     with open(filepath, 'r') as file:
@@ -30,3 +31,9 @@ def load_pickle(filepath: pathlib.Path | str) -> object:
     serializable_object = pickle.loads(data['main'])
 
     return serializable_object
+
+def load_younger_network_paths(data_path: pathlib.Path | str) -> Generator[str, None, None]:
+    # find all paths for network folders DATA_PATH/gaphd_id/network/
+    for root, dirs, files in os.walk(data_path):
+        if 'network' in dirs:
+            yield os.path.join(root, 'network')
