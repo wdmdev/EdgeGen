@@ -324,8 +324,6 @@ if __name__ == "__main__":
     selected_network_count = 0
     for network in tqdm(networks_enumerable, total=num_networks):
         network_folder = network.data_path
-        if network_folder != "data/filter_series_with_attributes_paper/80c90d0d8b51482c8d1f887a12f52c86/network":
-            continue
         if network_folder is not None:
             tf_graph_filename = os.path.join(network_folder, 'tf_graph.pkl')
             # Check that the network_folder does not contain a tf_graph.pkl file
