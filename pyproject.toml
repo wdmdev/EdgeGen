@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "huggingface-hub>=0.26.2",
     "ipykernel>=6.29.5",
     "matplotlib>=3.7.5",
     "networkx>=3.1",
@@ -19,7 +20,8 @@ dependencies = [
     "toml>=0.10.2",
     "torch>=2.5.1",
     "torchvision>=0.20.1",
-    "tqdm",
+    "tqdm>=4.66.5",
+    "transformers>=4.46.3",
 ]
 
 [project.scripts]
