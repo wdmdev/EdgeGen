@@ -1,4 +1,4 @@
-# YoungerNNs
+# EdgeGen
 Neural Network Architectures for Resource Constrained Hardware
 
 ## Project Dependency Management 
