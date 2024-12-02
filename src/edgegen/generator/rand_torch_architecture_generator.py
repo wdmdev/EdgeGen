@@ -21,6 +21,7 @@ class RandomPytorchArchitectureSpec:
     input_size: Tuple[int, int, int]
     seed: int
 
+#TODO - Bug fix
 class RandomPytorchArchitectureGenerator:
 
     def __init__(self, spec: RandomPytorchArchitectureSpec) -> None:

@@ -3,6 +3,7 @@ from .architecture_generator import ArchitectureGenerator
 from .architectures import OFAProxylessNAS
 from typing import Any, Dict, Union
 
+#TODO - Fix OFA generator
 @dataclass(repr=True)
 class OFAProxylessNasInputSpec:
     """Class for input specification of OFAProxylessNAS architecture"""

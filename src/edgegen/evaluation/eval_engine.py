@@ -3,6 +3,7 @@ from typing import TypeVar, Generic, List, Callable, Dict, Any
 
 T = TypeVar('T')
 
+#TODO - Produce a better evaluation report that can be elegantly logged
 class EvaluationEngine():
     def __init__(self, constraint_manager: ConstraintManager,
                  metrics: Dict[str, Callable[[Generic[T]], Any]]) -> None:

@@ -1,4 +1,4 @@
-
+#TODO - Change to ArgumentParser and possibility to use configs
 
 if __name__ == "__main__":
     import os
