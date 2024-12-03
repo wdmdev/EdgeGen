@@ -11,7 +11,7 @@ if __name__ == "__main__":
     from edgegen import Bytes
     from edgegen.utils import get_logger
     from edgegen.evaluation.utils import estimate_torch_flash, estimate_torch_mem
-    from edgegen.BO_ofa_search import BOSearch
+    from edgegen.search.ax_bo import BOSearch
 
 
     # Create test constraint manager and constraints
@@ -68,5 +68,6 @@ if __name__ == "__main__":
                         archGenerator,
                         model_repo,
                         params,
+                        input_size,
                         logger)
     searcher.run(outcome_constraints)

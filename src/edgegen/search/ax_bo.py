@@ -3,24 +3,26 @@ from edgegen.evaluation import EvaluationEngine
 from edgegen.generator import ArchitectureGenerator
 from edgegen.repository import ModelRepository
 from logging import Logger
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Tuple
 import uuid
+from edgegen.conversion import torch2tflite
 
 class BOSearch:
     def __init__(self, eval_engine:EvaluationEngine, 
                  generator:ArchitectureGenerator, 
                  model_repo: ModelRepository,
                  parameters: List[Dict[str, Any]],
+                 input_size: Tuple[int, int, int, int], #TODO - find an elegant way to pass this
                  logger: Logger = None):
         self.eval_engine = eval_engine
         self.generator = generator
         self.parameters = parameters
         self.model_repo = model_repo
+        self.input_size = input_size 
         self.logger = logger
 
 
     def evaluate(self, params):
-        # Evaluate architecture
         generator_specs = self.generator.get_input_spec()(**params)
         arch = self.generator.generate(generator_specs)
         eval_result = self.eval_engine.evaluate(arch)
@@ -29,10 +31,10 @@ class BOSearch:
         if num_unsatisfied == 0:
             model_id = str(uuid.uuid4())
             self.model_repo.save(arch, model_id)
+            torch2tflite.convert(arch, self.input_size, self.model_repo.model_folder / model_id)
 
             if self.logger is not None:
                 msg = f'Valid architecture configuration found - {model_id}'
-                # log satisfied and unsatisfied constraints
                 msg += f"\nMetrics: {eval_result.metrics}"
 
                 msg += "\nSatisfied constraints:"
@@ -60,8 +62,6 @@ class BOSearch:
         result['num_unsatisfied'] = num_unsatisfied
 
         return result
-        # return {"objective": eval_result.metrics['flash_memory'], "constraint": num_unsatisfied,
-        #         "flash": eval_result.metrics['flash'], 'memory': eval_result.metrics['memory']}
     
     def run(self, outcome_constraints:Union[List[str], None]=None):
         satisfied_const = 'num_unsatisfied <= 0'

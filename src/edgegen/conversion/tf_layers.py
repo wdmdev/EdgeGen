@@ -19,11 +19,6 @@ def conv2d(
     output = _input
     with tf.variable_scope(scope_name):
         init_key = '%s/weight' % tf.get_variable_scope().name
-        # print(init_key, [
-        #     kernel_size,
-        #     kernel_size,
-        #     in_features,
-        #     out_features])
         initializer = param_initializer.get(
             init_key, tf.contrib.layers.variance_scaling_initializer())
         weight = tf.get_variable(
@@ -189,18 +184,8 @@ def flatten(_input):
 
 
 def dropout(_input, keep_prob, is_training):
-    # TODO: this modification may be problematic
     output = _input
     return output
-    # if keep_prob < 1:
-    #     output = tf.cond(
-    #         tf.cast(is_training, tf.bool),
-    #         lambda: tf.nn.dropout(_input, keep_prob),
-    #         lambda: _input
-    #     )
-    # else:
-    #     output = _input
-    # return output
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -232,10 +217,7 @@ class MBInvertedConvLayer:
         in_features = int(_input.get_shape()[3])
         with tf.variable_scope(self.id):
             if self.expand_ratio > 1:
-                feature_dim = round(in_features * self.expand_ratio)
-                # print(self.expand_ratio, feature_dim)
-                # assert self.expand_ratio in [3, 4, 6]
-                # feature_dim = _make_divisible(in_features * self.expand_ratio, 32)
+                feature_dim = tf.round(in_features * self.expand_ratio)
                 with tf.variable_scope('inverted_bottleneck'):
                     output = conv2d(
                         output, feature_dim, 1, 1, param_initializer=init)

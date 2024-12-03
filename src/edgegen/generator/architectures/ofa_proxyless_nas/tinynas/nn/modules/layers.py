@@ -4,6 +4,7 @@
 
 from collections import OrderedDict
 
+import torch
 import torch.nn as nn
 from ....utils import MyModule, build_activation, get_same_padding, SEModule, ShuffleLayer
 
@@ -464,7 +465,7 @@ class MBInvertedConvLayer(MyModule):
         self.use_se = use_se
 
         if self.mid_channels is None:
-            feature_dim = round(self.in_channels * self.expand_ratio)
+            feature_dim = torch.round(torch.tensor(self.in_channels * self.expand_ratio)).item()
         else:
             feature_dim = self.mid_channels
 

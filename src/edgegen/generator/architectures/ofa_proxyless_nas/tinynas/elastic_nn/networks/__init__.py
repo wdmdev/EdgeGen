@@ -1,1 +1,3 @@
-from .ofa_proxyless import *
+__all__ = ['OFAProxylessNASNets']
+
+from .ofa_proxyless import OFAProxylessNASNets

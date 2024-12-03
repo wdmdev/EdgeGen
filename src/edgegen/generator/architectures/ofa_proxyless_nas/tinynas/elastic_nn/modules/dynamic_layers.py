@@ -30,7 +30,7 @@ class DynamicMBConvLayer(MyModule):
         self.use_se = use_se
 
         # build modules
-        max_middle_channel = round(max(self.in_channel_list) * max(self.expand_ratio_list))
+        max_middle_channel = torch.round(torch.tensor(max(self.in_channel_list) * max(self.expand_ratio_list))).item()
         if max(self.expand_ratio_list) == 1:
             self.inverted_bottleneck = None
         else:
@@ -62,7 +62,7 @@ class DynamicMBConvLayer(MyModule):
 
         if self.inverted_bottleneck is not None:
             self.inverted_bottleneck.conv.active_out_channel = \
-                make_divisible(round(in_channel * self.active_expand_ratio), 8)
+                make_divisible(torch.round(torch.tensor(in_channel * self.active_expand_ratio)).item(), 8)
 
         self.depth_conv.conv.active_kernel_size = self.active_kernel_size
         self.point_linear.conv.active_out_channel = self.active_out_channel
@@ -100,7 +100,7 @@ class DynamicMBConvLayer(MyModule):
     ############################################################################################
 
     def get_active_subnet(self, in_channel, preserve_weight=True):
-        middle_channel = make_divisible(round(in_channel * self.active_expand_ratio), 8)
+        middle_channel = make_divisible(torch.round(torch.tensor(in_channel * self.active_expand_ratio)).item(), 8)
 
         # build the new layer
         sub_layer = MBInvertedConvLayer(
@@ -149,7 +149,7 @@ class DynamicMBConvLayer(MyModule):
             sorted_expand_list = copy.deepcopy(self.expand_ratio_list)
             sorted_expand_list.sort(reverse=True)
             target_width = sorted_expand_list[expand_ratio_stage]
-            target_width = round(max(self.in_channel_list) * target_width)
+            target_width = torch.round(torch.tensor(max(self.in_channel_list) * target_width)).item()
             importance[target_width:] = torch.arange(0, target_width - importance.size(0), -1)
 
         sorted_importance, sorted_idx = torch.sort(importance, dim=0, descending=True)

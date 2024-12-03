@@ -1,3 +1,4 @@
+import tensorflow as tf
 from .tf_layers import *
 
 
@@ -163,62 +164,3 @@ class ProxylessNASNets:
         output = classifier.build(output, self, init)
         output = tf.reshape(output, shape=[-1, self.n_classes])
         return output
-
-    # def build(self, init=None):
-    #     output = self.images
-    #     if init is not None:
-    #         for key in init:
-    #             init[key] = tf.constant_initializer(init[key])
-    #
-    #     # first conv
-    #     first_conv = ConvLayer(
-    #         'Conv',
-    #         self.net_config['first_conv']['out_channels'],
-    #         3,
-    #         2)
-    #     output = first_conv.build(output, self, init)
-    #
-    #     for i, block_config in enumerate(self.net_config['blocks']):
-    #         if block_config['mobile_inverted_conv']['name'] == 'ZeroLayer':
-    #             continue
-    #         mobile_inverted_conv = MBInvertedConvLayer(
-    #             '',
-    #             block_config['mobile_inverted_conv']['out_channels'],
-    #             block_config['mobile_inverted_conv']['kernel_size'],
-    #             block_config['mobile_inverted_conv']['stride'],
-    #             block_config['mobile_inverted_conv']['expand_ratio'],
-    #         )
-    #         if block_config['shortcut'] is None or block_config['shortcut']['name'] == 'ZeroLayer':
-    #             has_residual = False
-    #         else:
-    #             has_residual = True
-    #         if i == 0:
-    #             block = MobileInvertedResidualBlock(
-    #                 'expanded_conv'
-    #                 , mobile_inverted_conv, has_residual)
-    #         elif i <= 3:
-    #             block = MobileInvertedResidualBlock(
-    #                 'expanded_conv_%d' %
-    #                 i, mobile_inverted_conv, has_residual)
-    #         else:
-    #             block = MobileInvertedResidualBlock(
-    #                 'expanded_conv_%d' %
-    #                 (i-2), mobile_inverted_conv, has_residual)
-    #         output = block.build(output, self, init)
-    #
-    #     # feature mix layer
-    #     feature_mix_layer = ConvLayer(
-    #         'Conv_1',
-    #         self.net_config['feature_mix_layer']['out_channels'],
-    #         1,
-    #         1)
-    #     output = feature_mix_layer.build(output, self, init)
-    #
-    #     output = avg_pool(output, 7, 7)
-    #     output = flatten(output)
-    #     classifier = LinearLayer(
-    #         'Logits/Conv2d_1c_1x1',
-    #         self.n_classes,
-    #         self.net_config['classifier']['dropout_rate'])
-    #     output = classifier.build(output, self, init)
-    #     return output
