@@ -1,10 +1,8 @@
-import torch
 from torch import nn
-from torch.utils._python_dispatch import TorchDispatchMode
-from torch._subclasses.fake_tensor import FakeTensorMode
 from edgegen.evaluation import Constraint
 from edgegen import Bytes
 from typing import Tuple
+from edgegen.evaluation.utils import estimate_torch_mem
 
 
 class PyTorchMemoryConstraint(Constraint):
@@ -12,10 +10,11 @@ class PyTorchMemoryConstraint(Constraint):
     Constraint to check if the memory usage of a PyTorch model is within the specified limits.
     """
 
-    def __init__(self, input_size: Tuple[int], max_memory_limit: Bytes,
+    def __init__(self, name:str, description:str, 
+                 input_size: Tuple[int], 
+                 max_memory_limit: Bytes,
                  quant_size: int=1) -> None:
-        super().__init__("PyTorch Memory Constraint",
-                         "Check if the memory usage of a PyTorch model is within the specified limits.")
+        super().__init__(name, description)
         self.input_size = input_size
         self.max_memory_limit = max_memory_limit
         self.peak_memory_usage = Bytes(size=0)
@@ -35,49 +34,14 @@ class PyTorchMemoryConstraint(Constraint):
         bool
             True if the memory usage of the PyTorch model is within the specified limits, False otherwise.
         """
-        class MemoryTrackingMode(TorchDispatchMode):
-            def __init__(self, quant_size):
-                super().__init__()
-                self.current_memory = Bytes(size=0)
-                self.peak_memory = Bytes(size=0)
-                self.tensor_sizes = {}
-                self.quant_size = quant_size
+        self.peak_memory_usage = estimate_torch_mem(architecture, self.input_size, self.quant_size)
+        is_valid = self.peak_memory_usage <= self.max_memory_limit
+        if is_valid:
+            self.result = f"Peak Memory Usage: {self.peak_memory_usage} <= {self.max_memory_limit}"
+        else:
+            self.result = f"Peak Memory Usage: {self.peak_memory_usage} > {self.max_memory_limit}"
 
-            def __torch_dispatch__(self, func, types, args=(), kwargs=None):
-                # Call the function to get outputs
-                outputs = func(*args, **(kwargs or {}))
-
-                # Track memory allocations
-                tensors = []
-                if isinstance(outputs, torch.Tensor):
-                    tensors = [outputs]
-                elif isinstance(outputs, (tuple, list)):
-                    tensors = [out for out in outputs if isinstance(out, torch.Tensor)]
-
-                for tensor in tensors:
-                    mem = Bytes(tensor.numel() * self.quant_size)
-                    self.current_memory += mem
-                    self.peak_memory = max(self.peak_memory, self.current_memory)
-                    self.tensor_sizes[id(tensor)] = mem
-
-                # Track memory deallocations
-                for arg in args:
-                    if isinstance(arg, torch.Tensor) and id(arg) in self.tensor_sizes:
-                        self.current_memory -= self.tensor_sizes.pop(id(arg))
-
-                return outputs
-        
-        inputs = torch.randn(self.input_size)
-        # Use FakeTensorMode and MemoryTrackingMode to estimate peak memory usage
-        with FakeTensorMode(allow_non_fake_inputs=True) as fake_mode:
-            fake_inputs = fake_mode.from_tensor(inputs)
-            with MemoryTrackingMode(quant_size=self.quant_size) as mem_mode:
-                # Simulate the forward pass
-                fake_outputs = architecture(fake_inputs)
-                # Get the peak memory usage
-                self.peak_memory_usage = mem_mode.peak_memory
-
-        return self.peak_memory_usage.size <= self.max_memory_limit.size
+        return is_valid
 
 
 if __name__ == '__main__':

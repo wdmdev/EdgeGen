@@ -9,4 +9,4 @@ class EvaluationResult():
 
 
         def __str__(self):
-            return f"Metrics: {self.metrics}\nSatisfied Constraints: {self.satisfied_constraints}\nUnsatisfied Constraints: {self.unsatisfied_constraints}"
+            return f"\nMetrics: {self.metrics}\nSatisfied Constraints: {self.satisfied_constraints}\nUnsatisfied Constraints: {self.unsatisfied_constraints}"

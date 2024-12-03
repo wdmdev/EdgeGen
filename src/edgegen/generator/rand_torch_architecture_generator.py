@@ -1,5 +1,5 @@
 import random
-import torch
+from edgegen.generator import ArchitectureGenerator
 from torch import nn
 from typing import Tuple, List
 from dataclasses import dataclass
@@ -19,18 +19,14 @@ class RandomPytorchArchitectureSpec:
     num_classes: int
     input_channels: int
     input_size: Tuple[int, int, int]
-    seed: int
 
 #TODO - Bug fix
-class RandomPytorchArchitectureGenerator:
+class RandomPytorchArchitectureGenerator(ArchitectureGenerator):
 
-    def __init__(self, spec: RandomPytorchArchitectureSpec) -> None:
-        self.spec = spec
+    def get_input_spec(self) -> RandomPytorchArchitectureSpec:
+        return RandomPytorchArchitectureSpec
 
-    def generate(self) -> nn.Module:
-        # Set random seed for reproducibility
-        random.seed(self.spec.seed)
-        torch.manual_seed(self.spec.seed)
+    def generate(self, spec: RandomPytorchArchitectureSpec) -> nn.Module:
 
         layers = []
         in_channels = self.spec.input_channels

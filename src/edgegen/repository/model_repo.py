@@ -10,7 +10,7 @@ class ModelRepository(ABC):
     """
 
     @abstractmethod
-    def save(self, model: Generic[T]) -> None:
+    def save(self, model: Generic[T], path:Path) -> None:
         pass
     
     @abstractmethod

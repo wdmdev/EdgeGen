@@ -1,4 +1,5 @@
 import torch
+from pathlib import Path
 from torch import nn
 from pathlib import Path
 from edgegen.repository.model_repo import ModelRepository
@@ -9,7 +10,7 @@ class PytorchModelRepository(ModelRepository):
         super().__init__()
         self.model_folder = model_folder
 
-    def save(self, model: nn.Module) -> None:
+    def save(self, model: nn.Module, model_name:str) -> None:
         """
         Save the model to the repository model folder.
         Using state dict approach.
@@ -20,8 +21,7 @@ class PytorchModelRepository(ModelRepository):
             The model to save.
         """
         state_dict = model.state_dict()
-        model_path = self.model_folder / f"{model.__class__.__name__}.pt"
-        torch.save(state_dict, model_path)
+        torch.save(state_dict, self.model_folder / (model_name + ".pt"))
 
     def load(self, architecture: nn.Module) -> nn.Module:
         """

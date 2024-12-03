@@ -1,6 +1,7 @@
 from torch import nn
 from edgegen.evaluation import Constraint
 from edgegen import Bytes
+from edgegen.evaluation.utils import estimate_torch_flash
 
 
 class PyTorchFlashConstraint(Constraint):
@@ -8,9 +9,10 @@ class PyTorchFlashConstraint(Constraint):
     Constraint to check if the flash storage usage of a PyTorch model is within the specified limits.
     """
 
-    def __init__(self, max_flash_limit: Bytes, quant_size: int = 4) -> None:
-        super().__init__("PyTorch Flash Constraint",
-                         "Check if the flash storage usage of a PyTorch model is within the specified limits.")
+    def __init__(self, name:str, description:str, 
+                 max_flash_limit: Bytes, 
+                 quant_size: int = 4) -> None:
+        super().__init__(name, description)
         self.max_flash_limit = max_flash_limit
         self.flash_storage_usage = Bytes(size=0)
         self.quant_size = quant_size
@@ -29,12 +31,15 @@ class PyTorchFlashConstraint(Constraint):
         bool
             True if the flash storage usage of the PyTorch model is within the specified limits, False otherwise.
         """
-        total_storage = 0
-        for param in architecture.parameters():
-            # Calculate storage for each parameter
-            total_storage += param.numel() * self.quant_size
-        self.flash_storage_usage = Bytes(size=total_storage)
-        return self.flash_storage_usage <= self.max_flash_limit
+        self.flash_storage_usage = estimate_torch_flash(architecture, self.quant_size)
+        is_valid = self.flash_storage_usage <= self.max_flash_limit
+        if is_valid:
+            self.result = "Model Flash: " + str(self.flash_storage_usage) + " <= " + str(self.max_flash_limit)
+        else:
+            self.result = "Model Flash: " + str(self.flash_storage_usage) + " > " + str(self.max_flash_limit)
+        
+        return is_valid
+
 
 
 if __name__ == '__main__':

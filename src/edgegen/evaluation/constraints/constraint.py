@@ -12,6 +12,7 @@ class Constraint(ABC):
         super().__init__()
         self.name = name
         self.description = description
+        self.result = ""
 
     @abstractmethod
     def is_satisfied(self, architecture: Generic[T]) -> bool:
@@ -29,3 +30,6 @@ class Constraint(ABC):
             True if the architecture satisfies the constraint, False otherwise.
         """
         ...
+    
+    def __str__(self) -> str:
+        return "Constraint: " + self.name + "\nDescription: " + self.description + "\nResult: " + self.result

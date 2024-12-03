@@ -12,7 +12,7 @@ from ....utils import make_divisible, val2list
 
 class OFAProxylessNASNets(ProxylessNASNets):
 
-    def __init__(self, n_classes=1000, bn_param=(0.1, 1e-3), dropout_rate=0.1, base_stage_width=None,
+    def __init__(self, n_classes=1000, bn_momentum=0.1, bn_eps=1e-3, dropout_rate=0.1, base_stage_width=None,
                  width_mult_list=1.0, ks_list=3, expand_ratio_list=6, depth_list=4, no_mix_layer=False):
 
         self.width_mult_list = val2list(width_mult_list, 1)
@@ -134,7 +134,7 @@ class OFAProxylessNASNets(ProxylessNASNets):
         super(OFAProxylessNASNets, self).__init__(first_conv, blocks, feature_mix_layer, classifier)
 
         # set bn param
-        self.set_bn_param(momentum=bn_param[0], eps=bn_param[1])
+        self.set_bn_param(momentum=bn_momentum, eps=bn_eps)
 
         # runtime_depth
         self.runtime_depth = [
