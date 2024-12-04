@@ -63,7 +63,8 @@ class BOSearch:
 
         return result
     
-    def run(self, outcome_constraints:Union[List[str], None]=None):
+    def run(self, outcome_constraints:Union[List[str], None]=None,
+            epochs:int=20):
         satisfied_const = 'num_unsatisfied <= 0'
         if not any([o for o in outcome_constraints if o.lower() == satisfied_const]):
             outcome_constraints.append(satisfied_const)
@@ -73,4 +74,5 @@ class BOSearch:
             evaluation_function=self.evaluate,
             objective_name="objective",
             minimize=True,
-            outcome_constraints=outcome_constraints)
+            outcome_constraints=outcome_constraints,
+            total_trials=epochs)
