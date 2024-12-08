@@ -63,7 +63,7 @@ if __name__ == "__main__":
         {"name": "width_mult_list", "type": "range", "bounds": [0.1, 1.0]},
         {"name": "ks_list", "type": "choice", "values": list(range(3, 11, 2)), "value_type": "int"},
         {"name": "expand_ratio_list", "type": "range", "bounds": [2,10], "value_type": "int"},
-        {"name": "depth_list", "type": "range", "bounds": [2, 15], "value_type": "int"},
+        {"name": "depth_list", "type": "range", "bounds": [2, 150], "value_type": "int"},
         {"name": "no_mix_layer", "type": "choice", "values": [True, False]},
     ]
 
