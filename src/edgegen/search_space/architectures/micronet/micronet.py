@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 
-from edgegen.generator.architectures.micronet import activation
+from edgegen.search_space.architectures.micronet import activation
 
 import math
 

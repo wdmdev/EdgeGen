@@ -1,6 +1,6 @@
 from ax.service.managed_loop import optimize
 from edgegen.evaluation import EvaluationEngine
-from edgegen.generator import ArchitectureGenerator
+from edgegen.search_space import ArchitectureGenerator
 from edgegen.repository import ModelRepository
 from logging import Logger
 from typing import List, Dict, Any, Union, Tuple

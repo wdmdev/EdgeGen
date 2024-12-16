@@ -1,4 +1,4 @@
-from edgegen.generator import ArchitectureGenerator
+from edgegen.search_space import ArchitectureGenerator
 
 #TODO - Implement YoungerGenerator
 class YoungerGenerator(ArchitectureGenerator):

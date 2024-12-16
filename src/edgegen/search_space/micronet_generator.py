@@ -1,5 +1,5 @@
-from edgegen.generator import ArchitectureGenerator
-from edgegen.generator.architectures import MicroNet
+from edgegen.search_space import ArchitectureGenerator
+from edgegen.search_space.architectures import MicroNet
 from dataclasses import dataclass
 from typing import List
 

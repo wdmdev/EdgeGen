@@ -4,14 +4,14 @@ if __name__ == "__main__":
     import os
     import uuid
     from pathlib import Path
-    from edgegen.generator import OFAProxylessNasGenerator, MicroNetGenerator
+    from edgegen.search_space import OFAProxylessNasGenerator, MicroNetGenerator
     from edgegen.evaluation import ConstraintManager, PyTorchMemoryConstraint, PyTorchFlashConstraint
     from edgegen.evaluation.eval_engine import EvaluationEngine
     from edgegen.repository import PytorchModelRepository
     from edgegen import Bytes
     from edgegen.utils import get_logger
     from edgegen.evaluation.utils import estimate_torch_flash, estimate_torch_mem
-    from edgegen.search.ax_bo import BOSearch
+    from edgegen.search_strategy.ax_bo import BOSearch
     from argparse import ArgumentParser
 
     #add argument parser and epochs as argument
