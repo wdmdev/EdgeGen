@@ -42,7 +42,7 @@ if __name__ == "__main__":
     ]
     constraint_manager = ConstraintManager(constraints=constraints)
 
-    eval_engine = EvaluationEngine(constraint_manager=constraint_manager, metrics=metrics)
+    eval_engine:EvaluationEngine = EvaluationEngine(constraint_manager=constraint_manager, metrics=metrics)
 
     # archGenerator = OFAProxylessNasGenerator()
     archGenerator = MicroNetGenerator()

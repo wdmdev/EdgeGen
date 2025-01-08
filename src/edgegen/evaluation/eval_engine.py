@@ -6,11 +6,11 @@ T = TypeVar('T')
 #TODO - Produce a better evaluation report that can be elegantly logged
 class EvaluationEngine():
     def __init__(self, constraint_manager: ConstraintManager,
-                 metrics: Dict[str, Callable[[Generic[T]], Any]]) -> None:
+                 metrics: Dict[str, Callable[[T], Any]]) -> None:
         self.constraint_manager = constraint_manager
         self.metrics = metrics
 
-    def evaluate(self, architecture: Generic[T]) -> EvaluationResult:
+    def evaluate(self, architecture: T) -> EvaluationResult:
         constraint_results = self.constraint_manager.validate(architecture)
         metric_results = {name: metric(architecture) for name, metric in self.metrics.items()}
 
@@ -18,10 +18,10 @@ class EvaluationEngine():
                                 satisfied_constraints=[i for i, is_satisfied in enumerate(constraint_results) if is_satisfied],
                                 unsatisfied_constraints=[i for i, is_satisfied in enumerate(constraint_results) if not is_satisfied])
 
-    def get_satisfied_constraints(self, architecture: Generic[T]) -> List[Constraint]:
+    def get_satisfied_constraints(self, architecture: T) -> List[Constraint]:
         return [c for c in self.constraint_manager.constraints if c.is_satisfied(architecture)]
     
-    def get_unsatisfied_constraints(self, architecture: Generic[T]) -> List[Constraint]:
+    def get_unsatisfied_constraints(self, architecture: T) -> List[Constraint]:
         return [c for c in self.constraint_manager.constraints if not c.is_satisfied(architecture)]
 
 
