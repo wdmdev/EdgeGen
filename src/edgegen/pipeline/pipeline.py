@@ -3,7 +3,7 @@ from typing import TypeVar, Generic
 from logging import Logger
 
 from edgegen.evaluation import EvaluationEngine
-from edgegen.search_space import ArchitectureGenerator
+from edgegen.design_space import ArchitectureGenerator
 from edgegen.repository import ModelRepository
 
 T = TypeVar('T')
