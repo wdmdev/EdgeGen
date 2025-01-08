@@ -1,5 +1,5 @@
 import random
-from edgegen.search_space import ArchitectureGenerator
+from edgegen.design_space import ArchitectureGenerator
 from torch import nn
 from typing import Tuple, List
 from dataclasses import dataclass

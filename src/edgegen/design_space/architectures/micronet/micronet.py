@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 
-from edgegen.search_space.architectures.micronet import activation
+from edgegen.design_space.architectures.micronet import activation
 
 import math
 
@@ -380,6 +380,17 @@ class DYMicroBlock(nn.Module):
 
 ###########################################################################
 from typing import List
+from dataclasses import dataclass
+
+@dataclass
+class MicroNetActivationSpec:
+    module: str
+    act_max: float
+    act_bias: bool
+    init_a_block3: List[float]
+    init_a: List[float]
+    init_b: List[float]
+    reduction: int
 
 class MicroNet(nn.Module):
     def __init__(self, 
@@ -394,14 +405,30 @@ class MicroNet(nn.Module):
                  pointwise: str,
                  dropout_rate: float,
                  shuffle: bool,
-                 activation_cfg, #TODO: add type
+                 ###### Activation Config ######
+                 activation_module: str,
+                 activation_act_max: float,
+                 activation_act_bias: bool,
+                 activation_init_a_block3: List[float],
+                 activation_init_a: List[float],
+                 activation_init_b: List[float],
+                 activation_reduction: int,
                  #### Standard inputs ####
-                 input_size:int=224, 
-                 num_classes:int=1000, 
-                 teacher:bool=False
+                 input_size:int=128, 
+                 num_classes:int=100, 
+                 teacher:bool=False,
                  ):
         super(MicroNet, self).__init__()
 
+        activation_cfg = MicroNetActivationSpec(
+            module=activation_module,
+            act_max=activation_act_max,
+            act_bias=activation_act_bias,
+            init_a_block3=activation_init_a_block3,
+            init_a=activation_init_a,
+            init_b=activation_init_b,
+            reduction=activation_reduction
+        )
         block = eval(block)
 
         # building first layer
@@ -416,34 +443,37 @@ class MicroNet(nn.Module):
                 )]
 
         for idx, val in enumerate(self.cfgs):
-            s, n, c, ks, c1, c2, g1, g2, c3, g3, g4, y1, y2, y3, r = val
+            (stride, n_blocks, output_channel, kernel_size, 
+             ch_exp1, ch_exp2, ch_per_group1, ch_per_group2, 
+             groups_1x1_1, groups_1x1_2, groups_1x1_3, 
+             dy1, dy2, dy3, act_ratio) = val
 
-            t1 = (c1, c2)
-            gs1 = (g1, g2)
-            gs2 = (c3, g3, g4)
-            activation_cfg.dy = [y1, y2, y3]
-            activation_cfg.ratio = r
+            ch_exp = (ch_exp1, ch_exp2)
+            ch_per_group = (ch_per_group1, ch_per_group2)
+            groups_1x1_1 = (groups_1x1_1, groups_1x1_2, groups_1x1_3)
+            activation_cfg.dy = [dy1, dy2, dy3]
+            activation_cfg.ratio = act_ratio
 
-            output_channel = c
+            output_channel = output_channel
             layers.append(block(input_channel, output_channel,
-                kernel_size=ks, 
-                stride=s, 
-                ch_exp=t1, 
-                ch_per_group=gs1, 
-                groups_1x1=gs2,
+                kernel_size=kernel_size, 
+                stride=stride, 
+                ch_exp=ch_exp, 
+                ch_per_group=ch_per_group, 
+                groups_1x1=groups_1x1_1,
                 depthsep = depth_sep,
                 shuffle = shuffle,
                 pointwise = pointwise,
                 activation_cfg=activation_cfg,
             ))
             input_channel = output_channel
-            for i in range(1, n):
+            for i in range(1, n_blocks):
                 layers.append(block(input_channel, output_channel, 
-                    kernel_size=ks, 
+                    kernel_size=kernel_size, 
                     stride=1, 
-                    ch_exp=t1, 
-                    ch_per_group=gs1, 
-                    groups_1x1=gs2,
+                    ch_exp=ch_exp, 
+                    ch_per_group=ch_per_group, 
+                    groups_1x1=groups_1x1_1,
                     depthsep = depth_sep,
                     shuffle = shuffle,
                     pointwise = pointwise,
