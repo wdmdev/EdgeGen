@@ -4,7 +4,7 @@ if __name__ == "__main__":
     import os
     import uuid
     from pathlib import Path
-    from edgegen.search_space import OFAProxylessNasGenerator, MicroNetGenerator
+    from edgegen.design_space import OFAProxylessNasGenerator, MicroNetGenerator
     from edgegen.evaluation import ConstraintManager, PyTorchMemoryConstraint, PyTorchFlashConstraint
     from edgegen.evaluation.eval_engine import EvaluationEngine
     from edgegen.repository import PytorchModelRepository
@@ -44,8 +44,8 @@ if __name__ == "__main__":
 
     eval_engine = EvaluationEngine(constraint_manager=constraint_manager, metrics=metrics)
 
-    archGenerator = OFAProxylessNasGenerator()
-    # archGenerator = MicroNetGenerator()
+    # archGenerator = OFAProxylessNasGenerator()
+    archGenerator = MicroNetGenerator()
 
     output_folder = Path(__file__).parent.parent.parent / 'output'/ (archGenerator.__class__.__name__ + '_' + str(uuid.uuid4()))
     os.makedirs(output_folder, exist_ok=True)
@@ -54,33 +54,43 @@ if __name__ == "__main__":
     logger = get_logger(log_dir=output_folder, log_path_prefix='', name="BOSearch")
 
     # OFAProxylessNasGenerator params
-    params = [
-        {"name": "n_classes", "type": "range", "bounds": [2, 10], "value_type": "int"},
-        {"name": "bn_momentum", "type": "fixed", "value": 0.1},
-        {"name": "bn_eps", "type": "fixed", "value": 1e-3},
-        {"name": "dropout_rate", "type": "fixed", "value": 0.1},
-        {"name": "base_stage_width", "type": "choice", "values": ['google', '']},
-        {"name": "width_mult_list", "type": "range", "bounds": [0.1, 1.0]},
-        {"name": "ks_list", "type": "choice", "values": list(range(3, 11, 2)), "value_type": "int"},
-        {"name": "expand_ratio_list", "type": "range", "bounds": [2,10], "value_type": "int"},
-        {"name": "depth_list", "type": "range", "bounds": [2, 150], "value_type": "int"},
-        {"name": "no_mix_layer", "type": "choice", "values": [True, False]},
-    ]
+    # params = [
+    #     {"name": "n_classes", "type": "range", "bounds": [2, 10], "value_type": "int"},
+    #     {"name": "bn_momentum", "type": "fixed", "value": 0.1},
+    #     {"name": "bn_eps", "type": "fixed", "value": 1e-3},
+    #     {"name": "dropout_rate", "type": "fixed", "value": 0.1},
+    #     {"name": "base_stage_width", "type": "choice", "values": ['google', '']},
+    #     {"name": "width_mult_list", "type": "range", "bounds": [0.1, 1.0]},
+    #     {"name": "ks_list", "type": "choice", "values": list(range(3, 11, 2)), "value_type": "int"},
+    #     {"name": "expand_ratio_list", "type": "range", "bounds": [2,10], "value_type": "int"},
+    #     {"name": "depth_list", "type": "range", "bounds": [2, 150], "value_type": "int"},
+    #     {"name": "no_mix_layer", "type": "choice", "values": [True, False]},
+    # ]
 
     # MicronetGenerator params
-    # params = [
-    #     {"name": "input_size", "type": "range", "bounds": [32, 256], "value_type": "int"},
-    #     {"name": "num_classes", "type": "range", "bounds": [2, 1000], "value_type": "int"},
-    #     {"name": "teacher", "type": "choice", "values": [True, False], "value_type": "bool"},
-    #     {"name": "block", "type": "choice", "values": ["block1", "block2", "block3"], "value_type": "str"},
-    #     {"name": "stem_ch", "type": "range", "bounds": [16, 128], "value_type": "int"},
-    #     {"name": "stem_dilation", "type": "range", "bounds": [1, 4], "value_type": "int"},
-    #     {"name": "dropout_rate", "type": "range", "bounds": [0.0, 0.5], "value_type": "float"},
-    #     {"name": "activation_cfg.module", "type": "choice", "values": ["relu", "swish", "mish"], "value_type": "str"},
-    #     {"name": "activation_cfg.act_max", "type": "range", "bounds": [0.0, 10.0], "value_type": "float"},
-    #     {"name": "activation_cfg.act_bias", "type": "choice", "values": [True, False], "value_type": "bool"},
-    #     {"name": "activation_cfg.reduction", "type": "range", "bounds": [1, 16], "value_type": "int"},
-    # ]
+    params = [
+        {"name": "num_classes", "type": "range", "bounds": [2, 100], "value_type": "int"},
+        # MicroNet Config
+        {"name": "block", "type": "fixed", "value": "DYMicroBlock", "value_type": "str"},
+        {"name": "stem_ch", "type": "choice", "values": list(range(2,16, 2)), "value_type": "int"},
+        {"name": "stem_groups", "type": "choice", "values": ["[2,2]", "[3,2]", "[4,2], [4,3]"], "value_type": "str"},
+        {"name": "stem_dilation", "type": "range", "bounds": [1, 4], "value_type": "int"},
+        {"name": "stem_mode", "type": "choice", "values": ["spatialsepsf", "spatialsepsf"], "value_type": "str"},
+        {"name": "out_ch", "type": "range", "bounds": [16, 128], "value_type": "int"},
+        {"name": "depth_sep", "type": "choice", "values": [True, False], "value_type": "bool"},
+        {"name": "pointwise", "type": "choice", "values": ["conv", "conv1x1", "conv3x3"], "value_type": "str"},
+        {"name": "dropout_rate", "type": "range", "bounds": [0.0, 0.5], "value_type": "float"},
+        {"name": "shuffle", "type": "choice", "values": [True, False], "value_type": "bool"},
+
+        # Activation Config
+        {"name": "activation_module", "type": "choice", "values": ["relu", "swish", "mish"], "value_type": "str"},
+        {"name": "activation_act_max", "type": "range", "bounds": [0.0, 10.0], "value_type": "float"},
+        {"name": "activation_act_bias", "type": "choice", "values": [True, False], "value_type": "bool"},
+        {"name": "activation_init_a_block3", "type": "range", "bounds": [0.0, 10.0], "value_type": "float"},
+        {"name": "activation_init_a", "type": "range", "bounds": [0.0, 10.0], "value_type": "float"},
+        {"name": "activation_init_b", "type": "range", "bounds": [0.0, 10.0], "value_type": "float"},
+        {"name": "activation_reduction", "type": "range", "bounds": [1, 16], "value_type": "int"},
+    ]
 
     outcome_constraints = [
         f'flash <= {constraints[1].max_flash_limit.size}',
