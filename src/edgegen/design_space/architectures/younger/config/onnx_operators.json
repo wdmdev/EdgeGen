@@ -1,0 +1,26 @@
+{
+    "operators": [
+       "Conv",
+       "Gemm",
+       "BatchNormalization",
+       "Relu",
+       "GlobalAveragePool",
+       "ReduceMean",
+       "Min",
+       "Max",
+       "Reshape",
+       "MatMul",
+       "Mul",
+       "Div",
+       "Add",
+       "Sub",
+       "LpNormalization",
+       "Softmax",
+       "LogSoftmax",
+       "Sigmoid",
+       "ArgMax",
+       "LinearClassifier",
+       "SVMClassifier",
+       "ReduceSum"
+    ]
+}
