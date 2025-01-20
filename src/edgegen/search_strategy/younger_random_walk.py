@@ -111,17 +111,9 @@ class YoungerRandomWalk:
                 sub_walk_graph_hash = create_graph_fingerprint(sub_walk_graph)
 
                 if sub_walk_graph_hash not in hashes_of_generated_graphs:
-                    try: 
-                        onnx_arch = nn_translation.networkx_to_onnx(sub_walk_graph, self.input_size, self.output_size)
-                        torch_arch = nn_translation.onnx_to_pytorch(onnx_arch)
-                        self.evaluate(torch_arch)
-                    # Catch system exit and exception
-                    except (SystemExit, Exception) as e:
-                        onnx.save_model(onnx_arch, self.model_repo.model_folder / f"test.onnx")
-                        inferred_model = onnx.shape_inference.infer_shapes(onnx_arch, data_prop=True)
-                        inferred_shapes = {vi.name: [dim.dim_value for dim in vi.type.tensor_type.shape.dim] for vi in inferred_model.graph.value_info}
-                        print(f"Error evaluating architecture: {e}")
-                        print(f"Architecture: {torch_arch}")
+                    onnx_arch = nn_translation.networkx_to_onnx(sub_walk_graph, self.input_size, self.output_size)
+                    torch_arch = nn_translation.onnx_to_pytorch(onnx_arch)
+                    self.evaluate(torch_arch)
                     hashes_of_generated_graphs.append(sub_walk_graph_hash)
 
                 neighbors.pop(neighbors.index(next_node))
