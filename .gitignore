@@ -1,5 +1,7 @@
 output/
 **/younger/networks/
+data/
+src/edgegen/design_space/architectures/younger/super_graph.pkl
 
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,vim,linux,visualstudiocode,virtualenv

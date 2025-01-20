@@ -1,14 +1,14 @@
 from edgegen.design_space import ArchitectureGenerator
 from edgegen.design_space.architectures import YoungerNet
 from dataclasses import dataclass
-from typing import List
+from typing import List, Union
 
 # The input spec is kept for consistency with the ArchitectureGenerator interface
 @dataclass
 class YoungerInputSpec:
-    valid_ops: List[str]
-    valid_input_ops: List[str]
-    valid_output_ops: List[str]
+    valid_ops: Union[List[str], None]
+    valid_input_ops: Union[List[str], None]
+    valid_output_ops: Union[List[str], None]
 
 
 class YoungerGenerator(ArchitectureGenerator):

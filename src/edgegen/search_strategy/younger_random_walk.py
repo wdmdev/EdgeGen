@@ -7,6 +7,8 @@ import uuid
 import random
 from edgegen.conversion import torch2tflite, nn_translation
 import networkx as nx
+from edgegen.design_space.architectures.younger.utils.hashing import create_graph_fingerprint
+import onnx
 
 class YoungerRandomWalk:
     def __init__(self, eval_engine:EvaluationEngine, 
@@ -60,7 +62,7 @@ class YoungerRandomWalk:
 
         return result
     
-    def run(self, max_walk_length:int, seed:int=None):
+    def run(self, max_walk_length:int, seed:int=None, hashes_of_generated_graphs:List = []) -> List[str]:
         """
         Perform multiple random walks on the graph starting from random start nodes.
         
@@ -71,42 +73,63 @@ class YoungerRandomWalk:
             max_walk_length (int): Maximum length of the walk.
         
         Returns:
-            list: A list of directed graphs (nx.DiGraph) representing the walks.
+            list: A list of graph hashes.
         """
         if seed is not None:
             import numpy as np
             random.seed(seed)
             np.random.seed(seed)
 
-        generator_specs = self.generator.get_input_spec()(self.parameters)
+        generator_specs = self.generator.get_input_spec()(**self.parameters)
         younger_net = self.generator.generate(generator_specs)
         graph = younger_net.super_graph
-        start_nodes = younger_net.valid_input_ops
-        end_nodes = younger_net.valid_output_ops
-        
+        start_nodes = younger_net.input_nodes
+        end_nodes = younger_net.output_nodes
+
         current_node = random.choice(start_nodes)
         walk_graph = nx.DiGraph()
         
-        prev_node_guid = str(uuid.uuid4())
-        walk_graph.add_node(prev_node_guid, **graph.nodes[current_node])
+        current_node_guid = str(uuid.uuid4())
+        walk_graph.add_node(current_node_guid, **graph.nodes[current_node])
+
+        neighbors = list(graph.neighbors(current_node))
         
         for _ in range(max_walk_length - 1):  # max_walk_length - 1 because we already have the start node
-            neighbors = list(graph.neighbors(current_node))
             if not neighbors:  # If no neighbors, stop the walk
                 break
-            next_node = random.choice(neighbors)
+            current_end_nodes = [n for n in neighbors if n in end_nodes]
+            current_options = current_end_nodes if current_end_nodes else neighbors
+
+            next_node = random.choice(current_options)
             next_node_guid = str(uuid.uuid4())
 
             if next_node in end_nodes:
                 sub_walk_graph = walk_graph.copy()
                 sub_walk_graph.add_node(next_node_guid, **graph.nodes[next_node])
-                sub_walk_graph.add_edge(prev_node_guid, next_node_guid)
+                sub_walk_graph.add_edge(current_node_guid, next_node_guid)
 
-                onnx_arch = nn_translation.networkx_to_onnx(sub_walk_graph, self.input_size, self.output_size)
-                torch_arch = nn_translation.onnx_to_pytorch(onnx_arch)
-                self.evaluate(torch_arch)
+                sub_walk_graph_hash = create_graph_fingerprint(sub_walk_graph)
+
+                if sub_walk_graph_hash not in hashes_of_generated_graphs:
+                    try: 
+                        onnx_arch = nn_translation.networkx_to_onnx(sub_walk_graph, self.input_size, self.output_size)
+                        torch_arch = nn_translation.onnx_to_pytorch(onnx_arch)
+                        self.evaluate(torch_arch)
+                    # Catch system exit and exception
+                    except (SystemExit, Exception) as e:
+                        onnx.save_model(onnx_arch, self.model_repo.model_folder / f"test.onnx")
+                        inferred_model = onnx.shape_inference.infer_shapes(onnx_arch, data_prop=True)
+                        inferred_shapes = {vi.name: [dim.dim_value for dim in vi.type.tensor_type.shape.dim] for vi in inferred_model.graph.value_info}
+                        print(f"Error evaluating architecture: {e}")
+                        print(f"Architecture: {torch_arch}")
+                    hashes_of_generated_graphs.append(sub_walk_graph_hash)
+
+                neighbors.pop(neighbors.index(next_node))
             else:
                 walk_graph.add_node(next_node_guid, **graph.nodes[next_node])
-                walk_graph.add_edge(prev_node_guid, next_node_guid)
-                prev_node_guid = next_node_guid
+                walk_graph.add_edge(current_node_guid, next_node_guid)
+                current_node_guid = next_node_guid
                 current_node = next_node
+                neighbors = list(graph.neighbors(current_node))
+        
+        return hashes_of_generated_graphs

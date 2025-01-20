@@ -6,9 +6,8 @@ from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 import networkx as nx
-import random
-import uuid
 
+from edgegen.design_space.architectures.younger.utils.hashing import make_json_serializable
 from edgegen.design_space.architectures.younger.network import Network
 from edgegen.design_space.architectures.younger.utils.hashing import hash_node
 
@@ -36,7 +35,7 @@ class YoungerNet:
 
         if os.path.exists(self.graph_path):
             print(f"Loading super_graph data from {self.graph_path}")
-            with open(self.graph_path) as f:
+            with open(self.graph_path, 'rb') as f:
                 graph_data = pkl.load(f)
                 self.input_nodes = graph_data['input_nodes']
                 self.output_nodes = graph_data['output_nodes']
@@ -48,7 +47,7 @@ class YoungerNet:
                 max_workers = 1
             print("Creating super graph from the Younger dataset...")
             print(f"Using {max_workers} workers to process graphs.")
-            graph_data = self.__iterate_graphs(self.data_path, max_workers)
+            graph_data = self.__iterate_graphs(self.__get_graph_paths(), max_workers)
             self.input_nodes = graph_data['input_nodes']
             self.output_nodes = graph_data['output_nodes']
             self.super_graph = graph_data['super_graph']
@@ -60,12 +59,33 @@ class YoungerNet:
         self.__clean_super_graph()
 
 
+    def __get_graph_paths(self):
+        # find all paths for network folders DATA_PATH/gaphd_id/network/
+        graph_paths = []
+        for root, dirs, files in os.walk(self.data_path):
+            if 'network' in dirs:
+                graph_paths.append(os.path.join(root, 'network'))
+        return graph_paths
     
-    def __process_single_graph(self, graph_path):
+    def _process_single_graph(self, graph_path):
         """Process a single graph to extract input/output nodes, all unique nodes, and edges."""
         NN = Network()
         NN.load(Path(graph_path))
         graph = NN.graph
+
+        #TODO extract and make a more general solution for this
+        # Set all Conv node auto_pad attributes to 'NOTSET': node['attributes']['auto_pad'] = 'NOTSET'
+        # onnx2pytorch does not support setting auto_pad to anything else
+        for node in graph.nodes(data=True):
+            if node[1]['operator']['op_type'] == 'Conv':
+                if 'auto_pad' in node[1]['attributes']:
+                    node[1]['attributes']['auto_pad']['value'] = 'NOTSET'
+                    graph.nodes[node[0]].update(node[1])
+
+
+        # Update all graph nodes to make them JSON serializable
+        for node in graph.nodes(data=True):
+            graph.nodes[node[0]].update(make_json_serializable(node[1]))
 
         # Find input nodes (nodes with no incoming edges) and output nodes (nodes with no outgoing edges)
         input_nodes = {hash_node(node) for name, node in graph.nodes(data=True) if graph.in_degree(name) == 0}
@@ -74,11 +94,8 @@ class YoungerNet:
         # Extract all nodes and hash them to create unique identifiers
         all_nodes = {}
         for _, node in graph.nodes(data=True):
-            try:
                 node_hash = hash_node(node)
                 all_nodes[node_hash] = node
-            except Exception as e:
-                print(f"Error processing node: {node}: {e}")
 
         # Extract all edges as (source, target) pairs with hashed nodes
         edges = [(hash_node(graph.nodes[source]), hash_node(graph.nodes[target])) for source, target in graph.edges()]
@@ -99,23 +116,19 @@ class YoungerNet:
         edge_counts = defaultdict(int)  # Edge weights (counts) for the combined graph
 
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
-            future_to_path = {executor.submit(self.__process_single_graph, path): path for path in graph_paths}
+            future_to_path = {executor.submit(self._process_single_graph, path): path for path in graph_paths}
 
             for future in tqdm(as_completed(future_to_path), total=len(future_to_path), desc="Processing graphs"):
-                try:
-                    result = future.result()
+                result = future.result()
 
-                    # Collect all distinct input and output nodes
-                    all_input_nodes.update(result['input_nodes'])
-                    all_output_nodes.update(result['output_nodes'])
-                    all_unique_nodes.update(result['all_nodes'])
+                # Collect all distinct input and output nodes
+                all_input_nodes.update(result['input_nodes'])
+                all_output_nodes.update(result['output_nodes'])
+                all_unique_nodes.update(result['all_nodes'])
 
-                    # Count how often each edge appears across all graphs
-                    for edge in result['edges']:
-                        edge_counts[edge] += 1
-
-                except Exception as e:
-                    print(f"Error processing graph: {future_to_path[future]}: {e}")
+                # Count how often each edge appears across all graphs
+                for edge in result['edges']:
+                    edge_counts[edge] += 1
 
         # Create the combined graph with weighted edges
         super_graph = nx.DiGraph()
@@ -137,15 +150,6 @@ class YoungerNet:
     def __clean_super_graph(self) -> None:
         """
         Cleans the super graph by removing invalid nodes and isolated nodes.
-    
-        Args:
-            super_graph (nx.Graph): The input super graph.
-            input_nodes (list): List of input nodes.
-            output_nodes (list): List of output nodes.
-            valid_ops (list): List of valid operator types.
-    
-        Returns:
-            tuple[nx.Graph, list, list]: The cleaned graph, updated input nodes, and updated output nodes.
         """
         get_node_op_type = lambda graph, node_id: graph.nodes[node_id]['operator'].get('op_type', 'unknown')
 
@@ -163,15 +167,22 @@ class YoungerNet:
         self.super_graph.remove_nodes_from(isolated_nodes)
 
         # Remove isolated nodes from input and output nodes
-        input_nodes = [node for node in input_nodes if node not in isolated_nodes]
-        output_nodes = [node for node in output_nodes if node not in isolated_nodes]
+        self.input_nodes = [node for node in self.input_nodes if node not in isolated_nodes]
+        self.output_nodes = [node for node in self.output_nodes if node not in isolated_nodes]
 
         # Step 3: Find all input and output nodes that are valid
-        self.input_nodes = [node for node in input_nodes if (node in self.super_graph.nodes and get_node_op_type(self.super_graph, node) in self.valid_input_ops)]
-        self.output_nodes = [node for node in output_nodes if (node in self.super_graph.nodes and get_node_op_type(self.super_graph, node) in self.valid_output_ops)]
+        self.input_nodes = [node for node in self.input_nodes if (node in self.super_graph.nodes and get_node_op_type(self.super_graph, node) in self.valid_input_ops)]
+        self.output_nodes = [node for node in self.output_nodes if (node in self.super_graph.nodes and get_node_op_type(self.super_graph, node) in self.valid_output_ops)]
 
         # Step 4: Remove all roots and leafs that are not input or output nodes
         roots_leafs_to_remove = [node for node in self.super_graph.nodes if 
-                                 (self.super_graph.out_degree(node) == 0 and node not in input_nodes) or
-                                 (self.super_graph.in_degree(node) == 0 and node not in output_nodes)]
-        self.super_graph = self.super_graph.remove_nodes_from(roots_leafs_to_remove)
+                                 (self.super_graph.in_degree(node) == 0 and node not in self.input_nodes) or
+                                 (self.super_graph.out_degree(node) == 0 and node not in self.output_nodes)]
+        self.super_graph.remove_nodes_from(roots_leafs_to_remove)
+
+        # Check for new isolated nodes and remove them
+        isolated_nodes = list(nx.isolates(self.super_graph))
+        self.super_graph.remove_nodes_from(isolated_nodes)
+
+        self.input_nodes = [node for node in self.input_nodes if (node not in isolated_nodes and node in self.super_graph.nodes)]
+        self.output_nodes = [node for node in self.output_nodes if (node not in isolated_nodes and node in self.super_graph.nodes)]

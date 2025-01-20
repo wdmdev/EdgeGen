@@ -19,6 +19,9 @@ dependencies = [
     "onnx-graphsurgeon>=0.5.2",
     "psutil>=6.1.0",
     "sng4onnx>=1.0.4",
+    "onnx2pytorch>=0.5.1",
+    "matplotlib>=3.10.0",
+    "ipykernel>=6.29.5",
 ]
 
 [build-system]

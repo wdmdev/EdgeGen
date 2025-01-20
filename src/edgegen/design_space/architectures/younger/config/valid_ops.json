@@ -1,0 +1,9 @@
+{
+    "operators": [
+        "Conv",
+        "Relu",
+        "Softmax",
+        "LogSoftmax",
+        "Sigmoid"
+    ]
+}
