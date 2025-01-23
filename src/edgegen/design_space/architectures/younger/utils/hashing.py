@@ -4,14 +4,6 @@ import json
 import hashlib
 import networkx as nx
 
-def get_graph_paths(data_path: Path):
-    # find all paths for network folders DATA_PATH/gaphd_id/network/
-    graph_folders = []
-    for root, dirs, files in os.walk(data_path):
-        if 'network' in dirs:
-            graph_folders.append(os.path.join(root, 'network'))
-    return graph_folders
-    
 def make_json_serializable(obj):
     """Convert to JSON serializable format."""
     if isinstance(obj, bytes):
