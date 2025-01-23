@@ -2,8 +2,11 @@
     "operators": [
         "Conv",
         "Relu",
+        "Add",
+        "Mul",
+        "Reshape",
+        "Concat",
         "Softmax",
-        "LogSoftmax",
         "Sigmoid"
     ]
 }

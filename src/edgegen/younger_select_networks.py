@@ -4,23 +4,22 @@ if __name__ == '__main__':
     import uuid
     from tqdm import tqdm
     from pathlib import Path
-    from edgegen.design_space import YoungerNetGenerator
+    from edgegen.design_space import YoungerSelector
     from edgegen.evaluation import ConstraintManager, PyTorchMemoryConstraint, PyTorchFlashConstraint
     from edgegen.evaluation.eval_engine import EvaluationEngine
     from edgegen.repository import PytorchModelRepository
     from edgegen import Bytes
     from edgegen.utils import get_logger
     from edgegen.evaluation.utils import estimate_torch_flash, estimate_torch_mem
-    from edgegen.search_strategy.younger_random_walk import YoungerRandomWalk
+    from edgegen.search_strategy.younger_selection import YoungerSelection
     from argparse import ArgumentParser
     
     #add argument parser and epochs as argument
     parser = ArgumentParser()
-    parser.add_argument("--walk_length", type=int, default=20)
-    parser.add_argument("--num_walks", type=int, default=100)
     parser.add_argument("--valid_ops", nargs='+', type=str, default=None)
     parser.add_argument("--valid_input_ops", nargs='+', type=str, default=None)
     parser.add_argument("--valid_output_ops", nargs='+', type=str, default=None)
+    parser.add_argument("--hash_nodes", action='store_true', default=True)
     
     args = parser.parse_args()
     
@@ -49,23 +48,24 @@ if __name__ == '__main__':
     
     eval_engine:EvaluationEngine = EvaluationEngine(constraint_manager=constraint_manager, metrics=metrics)
     
-    archGenerator = YoungerNetGenerator()
+    archSelector = YoungerSelector()
     
-    output_folder = Path(__file__).parent.parent.parent / 'output'/ (archGenerator.__class__.__name__ + '_' + str(uuid.uuid4()))
-    print(f"Generating random walks to {output_folder}")
+    output_folder = Path(__file__).parent.parent.parent / 'output'/ (archSelector.__class__.__name__ + '_' + str(uuid.uuid4()))
+    print(f"Saving selected networks to {output_folder}")
     os.makedirs(output_folder, exist_ok=True)
     model_repo = PytorchModelRepository(model_folder=output_folder)
     
-    logger = get_logger(log_dir=output_folder, log_path_prefix='', name=archGenerator.__class__.__name__)
+    logger = get_logger(log_dir=output_folder, log_path_prefix='', name=archSelector.__class__.__name__)
     
     params = {
         'valid_ops': args.valid_ops,
         'valid_input_ops': args.valid_input_ops,
         'valid_output_ops': args.valid_output_ops,
+        'hash_nodes': args.hash_nodes,
     }
     
-    searcher = YoungerRandomWalk(eval_engine, 
-                        archGenerator,
+    searcher = YoungerSelection(eval_engine, 
+                        archSelector,
                         model_repo,
                         params,
                         input_size,
@@ -74,8 +74,6 @@ if __name__ == '__main__':
     
     hashes_of_generated_graphs = []
 
-    for i in tqdm(range(args.num_walks)):
-        searcher.run(max_walk_length=args.walk_length, hashes_of_generated_graphs=hashes_of_generated_graphs)
+    searcher.run(hashes_of_selected_graphs=hashes_of_generated_graphs)
     
-    print(f"Random walks completed. Output saved to {output_folder}")
     print(f"Generated {len(hashes_of_generated_graphs)} unique graphs.")

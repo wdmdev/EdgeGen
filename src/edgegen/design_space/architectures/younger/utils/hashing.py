@@ -37,7 +37,7 @@ def create_graph_fingerprint(graph:nx.DiGraph, hash_nodes=False):
     """
     if not nx.is_directed_acyclic_graph(graph):
         raise ValueError("Graph must be a directed acyclic graph.")
-
+    
     if hash_nodes:
         # Hash the nodes
         for node, attrs in graph.nodes(data=True):

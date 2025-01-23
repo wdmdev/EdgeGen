@@ -4,7 +4,7 @@ import sys
 from argparse import ArgumentParser
 from tqdm import tqdm
 
-def copy_files(source_dir, file_list_path):
+def copy_files(target_dir, file_list_path):
     # Check if the file exists
     if not os.path.isfile(file_list_path):
         print(f"Error: File '{file_list_path}' not found!")
@@ -18,10 +18,9 @@ def copy_files(source_dir, file_list_path):
         file_path = line.strip()  # Remove leading/trailing whitespace
         if os.path.isfile(file_path):
             try:
-                print(f"Copying {file_path} and its tf dir to the current directory...")
                 tf_dir = file_path.split("_int8.tflite")[0] + "_tf"
-                shutil.copytree(tf_dir, os.path.join(source_dir, os.path.basename(tf_dir)))
-                shutil.copy(file_path, source_dir)
+                shutil.copytree(tf_dir, os.path.join(target_dir, os.path.basename(tf_dir)))
+                shutil.copy(file_path, target_dir)
             except Exception as e:
                 print(f"Error copying {file_path}: {e}")
         else:
@@ -31,9 +30,9 @@ def copy_files(source_dir, file_list_path):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--source_dir", type=str, help="Path to the directory containing the files to copy",)
+    parser.add_argument("--target_dir", type=str, help="Path to the directory where the files should be copied to",)
     parser.add_argument("--file_list_path", type=str, help="Path to the file containing the list of files to copy")
     args = parser.parse_args()
 
     # Get the input file path from command-line arguments
-    copy_files(args.source_dir, args.file_list_path)
+    copy_files(args.target_dir, args.file_list_path)

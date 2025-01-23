@@ -1,7 +1,6 @@
 {
     "operators": [
         "Softmax",
-        "LogSoftmax",
         "Sigmoid"
     ]
 }

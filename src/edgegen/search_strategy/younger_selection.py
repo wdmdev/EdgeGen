@@ -1,18 +1,18 @@
 from edgegen.evaluation import EvaluationEngine
-from edgegen.design_space import YoungerNetGenerator
+from edgegen.design_space import YoungerSelector
 from edgegen.repository import ModelRepository
 from logging import Logger
 from typing import List, Dict, Any, Tuple
 import uuid
 import random
 from edgegen.conversion import torch2tflite, nn_translation
-import networkx as nx
 from edgegen.design_space.architectures.younger.utils.hashing import create_graph_fingerprint
+from tqdm import tqdm
 import traceback
 
-class YoungerRandomWalk:
+class YoungerSelection:
     def __init__(self, eval_engine:EvaluationEngine, 
-                 generator:YoungerNetGenerator, 
+                 generator:YoungerSelector, 
                  model_repo: ModelRepository,
                  parameters: List[Dict[str, Any]],
                  input_size: Tuple[int, int, int, int], #TODO - find an elegant way to pass this
@@ -62,7 +62,7 @@ class YoungerRandomWalk:
 
         return result
     
-    def run(self, max_walk_length:int, seed:int=None, hashes_of_generated_graphs:List = []) -> List[str]:
+    def run(self, seed:int=None, hashes_of_selected_graphs:List = []) -> List[str]:
         """
         Perform multiple random walks on the graph starting from random start nodes.
         
@@ -81,56 +81,22 @@ class YoungerRandomWalk:
             np.random.seed(seed)
 
         generator_specs = self.generator.get_input_spec()(**self.parameters)
-        younger_net = self.generator.generate(generator_specs)
-        graph = younger_net.super_graph
-        start_nodes = younger_net.input_nodes
-        end_nodes = younger_net.output_nodes
+        younger_graphs = self.generator.generate(generator_specs)
 
-        current_node = random.choice(start_nodes)
-        walk_graph = nx.DiGraph()
-        
-        current_node_guid = str(uuid.uuid4())
-        walk_graph.add_node(current_node_guid, **graph.nodes[current_node])
+        for graph in tqdm(younger_graphs, total=sum(1 for _ in younger_graphs)):
+            graph_hash = create_graph_fingerprint(graph)
 
-        neighbors = list(graph.neighbors(current_node))
-        
-        for _ in range(max_walk_length - 1):  # max_walk_length - 1 because we already have the start node
-            if not neighbors:  # If no neighbors, stop the walk
-                break
-            current_end_nodes = [n for n in neighbors if n in end_nodes]
-            current_options = current_end_nodes if current_end_nodes else neighbors
-
-            next_node = random.choice(current_options)
-            next_node_guid = str(uuid.uuid4())
-
-            if next_node in end_nodes:
-                sub_walk_graph = walk_graph.copy()
-                sub_walk_graph.add_node(next_node_guid, **graph.nodes[next_node])
-                sub_walk_graph.add_edge(current_node_guid, next_node_guid)
-
-                sub_walk_graph_hash = create_graph_fingerprint(sub_walk_graph)
-
-                if sub_walk_graph_hash not in hashes_of_generated_graphs:
-                    onnx_arch = nn_translation.networkx_to_onnx(sub_walk_graph, self.input_size, self.output_size)
-                    torch_arch = nn_translation.onnx_to_pytorch(onnx_arch)
-                    try:
-                        self.evaluate(torch_arch)
-                    except SystemExit as e:
-                        self.logger.error(f"""{self.__class__.__name__} System Exit evaluating architecture\n
-                                          code: {e.code}\n{traceback.format_stack()}""")
-                        continue
-                    except Exception as e:
-                        self.logger.error(f"""{self.__class__.__name__} Exception evaluating architecture\n{e}
-                        \n{traceback.format_exc()}""")
-                        continue
-                    hashes_of_generated_graphs.append(sub_walk_graph_hash)
-
-                neighbors.pop(neighbors.index(next_node))
-            else:
-                walk_graph.add_node(next_node_guid, **graph.nodes[next_node])
-                walk_graph.add_edge(current_node_guid, next_node_guid)
-                current_node_guid = next_node_guid
-                current_node = next_node
-                neighbors = list(graph.neighbors(current_node))
-        
-        return hashes_of_generated_graphs
+            if graph_hash not in hashes_of_selected_graphs:
+                onnx_arch = nn_translation.networkx_to_onnx(graph, self.input_size, self.output_size)
+                torch_arch = nn_translation.onnx_to_pytorch(onnx_arch)
+                try:
+                    self.evaluate(torch_arch)
+                except SystemExit as e:
+                    self.logger.error(f"""{self.__class__.__name__} System Exit evaluating architecture\n
+                                      code: {e.code}\n{traceback.format_stack()}""")
+                    continue
+                except Exception as e:
+                    self.logger.error(f"""{self.__class__.__name__} Exception evaluating architecture\n{e}
+                    \n{traceback.format_exc()}""")
+                    continue
+                hashes_of_selected_graphs.append(graph_hash)

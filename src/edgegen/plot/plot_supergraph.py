@@ -3,7 +3,7 @@ def get_supergraph_figure():
     # Plot networkx graph 'super_graph.pkl'
     import networkx as nx
     import matplotlib.pyplot as plt
-    from edgegen.design_space.architectures.younger.younger import YoungerNet
+    from edgegen.design_space.architectures.younger.younger_net import YoungerNet
 
     # Load super_graph.pkl
     graph = YoungerNet().super_graph

@@ -1,5 +1,6 @@
 import ast
 import onnx
+import random
 from onnx import helper
 from onnx.shape_inference import infer_shapes
 import tensorflow as tf
@@ -46,122 +47,62 @@ def __convert_attribute_to_type(attr_value, attr_type):
     
     return value
 
-def pre_shape_inference_op_inputs(node, attrs, node_attrs, input_shape, output_nodes):
+def pre_shape_inference_op_inputs(node, attrs, node_attrs, shape_tracker, output_nodes):
     input = None
     input_name = None
 
-    if attrs['operator']['op_type'] == 'Reshape':
-        batch_size = input_shape[0]
-        if ((output_nodes[0]['operator']['op_type'] == 'Conv') &
-        (input_shape[1] > input_shape[3] < input_shape[2])):
-            target_shape = [batch_size, input_shape[3], input_shape[1], input_shape[2]]
-        else:
-            target_shape = [batch_size, -1]
+    if attrs['operator']['op_type'] == 'Add':
+        # if 'axis' in node_attrs remove it. Onnx Add does not have axis attribute
+        if 'axis' in node_attrs:
+            del node_attrs['axis']
+        add_dim = list(shape_tracker.values())[-1]
+        add_values = np.random.rand(*add_dim).astype(np.float32)
+        # Create the tensor for Y
+        input_name = f"Add_{node}"
+        input = helper.make_tensor(
+            name=input_name,
+            data_type=onnx.TensorProto.FLOAT,
+            dims=add_dim,
+            vals=add_values.flatten()
+        )
+    elif attrs['operator']['op_type'] == 'Mul':
+        mul_dim = list(shape_tracker.values())[-1]
+        mul_values = np.random.rand(*mul_dim).astype(np.float32)
+        # Create the tensor for Y
+        input_name = f"Mul_{node}"
+        input = helper.make_tensor(
+            name=input_name,
+            data_type=onnx.TensorProto.FLOAT,
+            dims=mul_dim,
+            vals=mul_values.flatten()
+        )
+    elif attrs['operator']['op_type'] == 'Reshape':
+        reshape_dim = node_attrs.get('shape', [])
         input_name = f"Reshape_{node}"
         input = helper.make_tensor(
-            input_name,
-            onnx.TensorProto.INT64,
-            dims=(len(target_shape),),
-            vals=target_shape
-        )
-    elif attrs['operator']['op_type'] == 'Range':
-        # Define scalar values for start, limit, and delta
-        start_value = np.array(0, dtype=np.int64)
-        limit_value = np.array(10, dtype=np.int64)
-        delta_value = np.array(1, dtype=np.int64)
-
-        # Create unique names for the tensors
-        start_name = f"Range_start_{node}"
-        limit_name = f"Range_limit_{node}"
-        delta_name = f"Range_delta_{node}"
-
-        # Create tensors for each scalar value
-        start_tensor = helper.make_tensor(
-            name=start_name,
+            name=input_name,
             data_type=onnx.TensorProto.INT64,
-            dims=(),
-            vals=start_value.flatten()
+            dims=(len(reshape_dim),),
+            vals=np.array(reshape_dim, dtype=np.int64)
         )
-        limit_tensor = helper.make_tensor(
-            name=limit_name,
-            data_type=onnx.TensorProto.INT64,
-            dims=(),
-            vals=limit_value.flatten()
-        )
-        delta_tensor = helper.make_tensor(
-            name=delta_name,
-            data_type=onnx.TensorProto.INT64,
-            dims=(),
-            vals=delta_value.flatten()
-        )
-        input = [start_tensor, limit_tensor, delta_tensor]
-        input_name = [start_name, limit_name, delta_name]
     elif attrs['operator']['op_type'] == 'Unsqueeze':
-        axes = node_attrs.get('axes', None)
-        if axes is None:
-            axes = attrs['attributes'].get('axes', None)
-            if axes:
-                axes = axes['value']
-            else:
-                axes = [0] # Default value
+        axes = node_attrs.get('axes', [])
         input_name = f"Unsqueeze_{node}"
         input = helper.make_tensor(
-            input_name,
-            onnx.TensorProto.INT64,
+            name=input_name,
+            data_type=onnx.TensorProto.INT64,
             dims=(len(axes),),
-            vals=axes
+            vals=np.array(axes, dtype=np.int64)
         )
-    elif attrs['operator']['op_type'] == 'Gather':
-        indices = np.array([0, 1, 2, 3], dtype=np.int64)
-        input_name = f"Gather_{node}"
+    elif attrs['operator']['op_type'] == 'Concat':
+        concat_dim = node_attrs.get('axis', 0)
+        input_name = f"Concat_{node}"
         input = helper.make_tensor(
-            input_name,
-            onnx.TensorProto.INT64,
-            dims=(len(indices),),
-            vals=indices
+            name=input_name,
+            data_type=onnx.TensorProto.INT64,
+            dims=(1,),
+            vals=np.array([concat_dim], dtype=np.int64)
         )
-    elif attrs['operator']['op_type'] == 'BatchNormalization':
-        # Extract input dimensions for scale, bias, mean, and variance
-        input_dim = input_shape[1]
-        scale_values = np.random.rand(input_dim).astype(np.float32)
-        bias_values = np.random.rand(input_dim).astype(np.float32)
-        mean_values = np.random.rand(input_dim).astype(np.float32)
-        variance_values = np.random.rand(input_dim).astype(np.float32)
-
-        # Create the tensors for scale, bias, mean, and variance
-        scale_name = f"BatchNorm_scale_{node}"
-        bias_name = f"BatchNorm_bias_{node}"
-        mean_name = f"BatchNorm_mean_{node}"
-        variance_name = f"BatchNorm_variance_{node}"
-
-        scale_tensor = helper.make_tensor(
-            name=scale_name,
-            data_type=onnx.TensorProto.FLOAT,
-            dims=(input_dim,),
-            vals=scale_values.flatten()
-        )
-        bias_tensor = helper.make_tensor(
-            name=bias_name,
-            data_type=onnx.TensorProto.FLOAT,
-            dims=(input_dim,),
-            vals=bias_values.flatten()
-        )
-        mean_tensor = helper.make_tensor(
-            name=mean_name,
-            data_type=onnx.TensorProto.FLOAT,
-            dims=(input_dim,),
-            vals=mean_values.flatten()
-        )
-        variance_tensor = helper.make_tensor(
-            name=variance_name,
-            data_type=onnx.TensorProto.FLOAT,
-            dims=(input_dim,),
-            vals=variance_values.flatten()
-        )
-
-        # Return the tensors as inputs for the BatchNormalization node
-        input = [scale_tensor, bias_tensor, mean_tensor, variance_tensor]
-        input_name = [scale_name, bias_name, mean_name, variance_name]
 
     return input, input_name
 
@@ -232,16 +173,11 @@ def post_shape_inference_op_inputs(node, attrs, node_attrs, shape_tracker):
             if len(strides) == 0:
                 strides = (1, 1)
 
-        if 'group' not in node_attrs:
-            group = 1
-        else:
-            group = node_attrs['group']
-            in_channels = input_shape[1]
-            out_channels = round(input_shape[1]/2) # halfing the number of channels
-            if out_channels == 0:
-                out_channels = 1
-            if (out_channels < group) or (in_channels % group != 0 or out_channels % group != 0):
-                group = 1
+        group = 1
+        in_channels = input_shape[1]
+        out_channels = round(input_shape[1]/2) # halfing the number of channels
+        if out_channels == 0:
+            out_channels = 1
 
         node_attrs['kernel_shape'] = kernel_shape
         node_attrs['strides'] = strides
@@ -267,8 +203,8 @@ def post_shape_inference_op_inputs(node, attrs, node_attrs, shape_tracker):
             vals=weights.flatten(),
         )
     elif attrs['operator']['op_type'] == 'MatMul':
-        output_dim = 2 # choose yourself
-        y_values = np.random.rand(input_shape, output_dim).astype(np.float32)
+        output_dim = random.choice([8, 16, 32, 64, 128, 256, 512]) # choose yourself
+        y_values = np.random.rand(*input_shape[1:], output_dim).astype(np.float32)
         # Create the tensor for Y
         input_name = f"Matmul_{node}"
         input = helper.make_tensor(
@@ -277,19 +213,8 @@ def post_shape_inference_op_inputs(node, attrs, node_attrs, shape_tracker):
             dims=(input_shape, output_dim),
             vals=y_values.flatten()
         )
-    elif attrs['operator']['op_type'] == 'Add':
-        add_dim = input_shape
-        add_values = np.random.rand(*add_dim).astype(np.float32)
-        # Create the tensor for Y
-        input_name = f"Add_{node}"
-        input = helper.make_tensor(
-            name=input_name,
-            data_type=onnx.TensorProto.FLOAT,
-            dims=add_dim,
-            vals=add_values.flatten()
-        )
     elif attrs['operator']['op_type'] == 'Sub':
-        sub_dim = input_shape
+        sub_dim = input_shape[:]
         sub_values = np.random.rand(*sub_dim).astype(np.float32)
         # Create the tensor for Y
         input_name = f"Sub_{node}"
@@ -300,7 +225,7 @@ def post_shape_inference_op_inputs(node, attrs, node_attrs, shape_tracker):
             vals=sub_values.flatten()
         )
     elif attrs['operator']['op_type'] == 'Div':
-        div_dim = input_shape
+        div_dim = input_shape[1:]
         div_values = np.random.rand(*div_dim).astype(np.float32)
         # Create the tensor for Y
         input_name = f"Div_{node}"
@@ -309,17 +234,6 @@ def post_shape_inference_op_inputs(node, attrs, node_attrs, shape_tracker):
             data_type=onnx.TensorProto.FLOAT,
             dims=div_dim,
             vals=div_values.flatten()
-        )
-    elif attrs['operator']['op_type'] == 'Mul':
-        mul_dim = input_shape
-        mul_values = np.random.rand(*mul_dim).astype(np.float32)
-        # Create the tensor for Y
-        input_name = f"Mul_{node}"
-        input = helper.make_tensor(
-            name=input_name,
-            data_type=onnx.TensorProto.FLOAT,
-            dims=mul_dim,
-            vals=mul_values.flatten()
         )
     elif attrs['operator']['op_type'] == 'Gemm':
         # Extract input dimensions for A from the shape tracker
@@ -380,68 +294,74 @@ def post_shape_inference_op_inputs(node, attrs, node_attrs, shape_tracker):
 def _prepare_for_output(onnx_nodes, initializers, shape_tracker, output_shape):
     second_to_last_shape = list(shape_tracker.values())[-1]
     second_to_last_shape_name = list(shape_tracker.keys())[-1]
+    output_node = onnx_nodes.pop()
     if second_to_last_shape != output_shape:
         # Create the Reshape node
-        flatten_output_name = f"custom_flatten_output_{len(onnx_nodes)}"
+        flatten_output_name = f"custom_final_flatten"
         flatten_node = helper.make_node(
             'Flatten',
-            name=f"custom_flatten_{len(onnx_nodes)}",
+            name=f"custom_final_flatten",
             inputs=[second_to_last_shape_name],
-            outputs=[flatten_output_name]
+            outputs=[flatten_output_name],
+            axis=1
         )
 
-        flattened_shape = np.prod(second_to_last_shape[1:])
+        flattened_shape = int(np.prod(second_to_last_shape[1:]))
+        onnx_nodes.append(flatten_node)
+        shape_tracker[flatten_output_name] = (1, flattened_shape)
 
-        # Create a fully connected node to match the output shape
-        fully_weights = np.random.rand(flattened_shape, output_shape[1]).astype(np.float32)
-        fully_bias = np.random.rand(output_shape[1]).astype(np.float32)
-        fully_weights_name = f"custom_weights"
-        fully_bias_name = f"custom_bias"
-        fully_weights_tensor = helper.make_tensor(
-            name=fully_weights_name,
+        W = np.random.randn(flattened_shape, output_shape[1]).astype(np.float32)
+        W_name = f"custom_final_matmul_W"
+        W_initializer = helper.make_tensor(
+            name=W_name,
             data_type=onnx.TensorProto.FLOAT,
-            dims=fully_weights.shape,
-            vals=fully_weights.flatten()
+            dims=W.shape,
+            vals=W.flatten().tolist()
         )
-        fully_bias_tensor = helper.make_tensor(
-            name=fully_bias_name,
+        initializers.append(W_initializer)
+
+        # Define the MatMul node
+        matmul_output_name = f"custom_final_matmul"
+        matmul_node = helper.make_node(
+            'MatMul',
+            name=f"custom_final_matmul",
+            inputs=[flatten_output_name, W_name],
+            outputs=[matmul_output_name]
+        )
+        onnx_nodes.append(matmul_node)
+        shape_tracker[matmul_output_name] = output_shape
+
+        # Optionally, define the bias vector B and Add node
+        B = np.random.randn(output_shape[1]).astype(np.float32)
+        B_name = f"custom_final_add_B"
+        B_initializer = helper.make_tensor(
+            name=B_name,
             data_type=onnx.TensorProto.FLOAT,
-            dims=fully_bias.shape,
-            vals=fully_bias.flatten()
+            dims=B.shape,
+            vals=B.flatten().tolist()
         )
+        initializers.append(B_initializer)
 
-        initializers.append(fully_weights_tensor)
-        initializers.append(fully_bias_tensor)
-
-        fully_connected_output_name = f"custom_fully_connected_output_{len(onnx_nodes)}"
-        fully_connected_node = helper.make_node(
-            'Gemm',
-            name=f"custom_fully_connected_{len(onnx_nodes)}",
-            inputs=[flatten_output_name, fully_weights_name, fully_bias_name],
-            outputs=[fully_connected_output_name],
-            transA = 0,
-            transB = 0,
-            alpha = 1.0,
-            beta = 1.0
+        add_output_name = f"custom_final_add"
+        add_node = helper.make_node(
+            'Add',
+            name=f"custom_final_add",
+            inputs=[matmul_output_name, B_name],
+            outputs=[add_output_name]
         )
+        onnx_nodes.append(add_node)
+        shape_tracker[add_output_name] = output_shape
 
-        output_node = onnx_nodes.pop()
-        output_node.input[0] = fully_connected_output_name
+        output_node.input[0] = add_output_name
 
         # If last node is Softmax, LogSoftmax then change axis to 1
         if output_node.op_type in ['Softmax', 'LogSoftmax']:
             for attr in output_node.attribute:
                 if attr.name == 'axis':
-                    attr.i =0 
+                    attr.i = 1 
                     break
 
-        onnx_nodes.append(flatten_node)
-        onnx_nodes.append(fully_connected_node)
         onnx_nodes.append(output_node)
-        
-        # Update the shape tracker with the new shape
-        shape_tracker[flatten_output_name] = (1, flattened_shape)
-        shape_tracker[fully_connected_output_name] = output_shape
 
 
 def networkx_to_onnx(nx_graph, input_shape, output_shape):
@@ -471,7 +391,7 @@ def networkx_to_onnx(nx_graph, input_shape, output_shape):
                 elif ast.literal_eval(val) is not None:
                     node_attrs[att] = __convert_attribute_to_type(val, att_type)
 
-        pre_shape_op_input, pre_shape_op_input_name = pre_shape_inference_op_inputs(node, attrs, node_attrs, input_shape, output_nodes)
+        pre_shape_op_input, pre_shape_op_input_name = pre_shape_inference_op_inputs(node, attrs, node_attrs, shape_tracker, output_nodes)
         if pre_shape_op_input is not None:
             if isinstance(pre_shape_op_input_name, list):
                 input_names.extend(pre_shape_op_input_name)
@@ -497,7 +417,10 @@ def networkx_to_onnx(nx_graph, input_shape, output_shape):
             initializer=initializers
         )
         temp_model = helper.make_model(temp_graph)
-        inferred_model = infer_shapes(temp_model, data_prop=True)
+        try:
+            inferred_model = infer_shapes(temp_model, data_prop=True)
+        except Exception as e:
+            print(f"Error inferring shapes for node {node}: {e}")
         
         # Update the shape tracker with inferred shapes
         inferred_shapes = {vi.name: [dim.dim_value for dim in vi.type.tensor_type.shape.dim] for vi in inferred_model.graph.value_info}

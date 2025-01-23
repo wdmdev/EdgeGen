@@ -86,9 +86,10 @@ def convert(pt_model: torch.nn.Module, input_size: Tuple[int, int, int],
     # 3. Convert ONNX model to TensorFlow format
     tf_model_path = model_path.with_name(model_path.name + "_tf")
     onnx2tf.convert(input_onnx_file_path=onnx_path,  
-                           output_folder_path=tf_model_path,
-                           non_verbose=True,
-                           not_use_onnxsim=True)
+                            output_folder_path=tf_model_path,
+                            keep_shape_absolutely_input_names=["data"],
+                            copy_onnx_input_output_names_to_tflite = True,
+                            non_verbose=True)
 
     # 4. Convert the TensorFlow model to TFLite with INT8 quantization
     converter = tf.lite.TFLiteConverter.from_saved_model(tf_model_path.as_posix())
